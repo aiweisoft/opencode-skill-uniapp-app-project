@@ -118,3 +118,7 @@ myapp/
 - HBuilderX 升级后，`manifest.json` 可能出现新节点（如 `app-harmony`、`webView`）。
   用它新建一个空工程对比差异，再决定是否同步模板。
 - 官方文档改动较大时，重新抓取来源页面并更新 `references/`。
+
+## License
+
+[MIT](LICENSE)
