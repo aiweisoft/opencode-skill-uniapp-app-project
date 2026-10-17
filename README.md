@@ -1,5 +1,7 @@
 # opencode-skill-uniapp-app-project
 
+[![validate](https://github.com/aiweisoft/opencode-skill-uniapp-app-project/actions/workflows/validate.yml/badge.svg)](https://github.com/aiweisoft/opencode-skill-uniapp-app-project/actions/workflows/validate.yml)
+
 一个 [opencode](https://opencode.ai) **skill**：一键生成完整、最小可运行、**可直接用 HBuilderX 打开并发行云打包成原生 App** 的 uni-app 工程（Vue3 / Vue2）。
 
 ## 它解决什么问题
@@ -96,16 +98,40 @@ myapp/
 .
 ├── SKILL.md                          # skill 主文件：参数收集 → 生成 → 自检 → 交付说明
 ├── scripts/
-│   └── create-uniapp.ps1             # 脚手架（纯 ASCII，规避 PS 5.1 把脚本当 ANSI 解码的问题）
+│   ├── create-uniapp.ps1             # 脚手架（纯 ASCII，规避 PS 5.1 把脚本当 ANSI 解码的问题）
+│   └── validate-templates.mjs        # 模板与生成结果的自检脚本，CI 和本地共用
 ├── templates/
 │   ├── README.project.md             # 生成到目标工程里的中文 README 模板
 │   ├── vue3/                         # Vue3 完整模板
 │   └── vue2/                         # Vue2 完整模板
-└── references/
-    ├── project-structure.md          # 目录结构、Vue2/Vue3 判定、编码约束
-    ├── manifest-app.md               # 与打包 App 相关的 manifest 字段
-    ├── hbuilderx-app-build.md        # HBuilderX 运行 / 证书 / 云打包 / 常见问题
-    └── sources.md                    # 官方文档出处
+├── references/
+│   ├── project-structure.md          # 目录结构、Vue2/Vue3 判定、编码约束
+│   ├── manifest-app.md               # 与打包 App 相关的 manifest 字段
+│   ├── hbuilderx-app-build.md        # HBuilderX 运行 / 证书 / 云打包 / 常见问题
+│   └── sources.md                    # 官方文档出处
+└── .github/workflows/validate.yml    # CI
+```
+
+## 自检 / CI
+
+`.github/workflows/validate.yml` 在每次 push 和 PR 时跑两个 job：
+
+1. **Templates**（ubuntu）—— `node scripts/validate-templates.mjs` 检查仓库里的模板：
+   - `manifest.json` / `pages.json` 是 **UTF-8 无 BOM**（uni-app 的硬要求，最容易踩）；
+   - 两个文件作为 JSONC 能被解析（注释剥离后再 parse）；
+   - Vue3 模板必须**同时**有 `"vueVersion": "3"` 和 `createSSRApp` 版的 `main.js`，Vue2 模板两者都不能有；
+   - `pages.json` 的 `pages[0].path` 必须有对应的 `.vue` 文件；
+   - `static/logo.png` 的 PNG 魔数正确；
+   - `App.vue` 不能出现 `<template>`；
+   - `create-uniapp.ps1` 保持纯 ASCII（PS 5.1 会把无 BOM 的脚本按 ANSI 解码）。
+
+2. **Scaffolder on Windows**（windows-latest）—— 真正跑一遍脚手架：生成 Vue3 / Vue2 两个工程并用上面的脚本校验生成结果，再验证「目标目录非空时拒绝写入」和「相对路径 `-Target` 能正确解析」。
+
+本地想手动跑：
+
+```powershell
+node scripts/validate-templates.mjs
+node scripts/validate-templates.mjs --project "D:\code\myapp" --vue 3 --app-name "我的应用" --app-id __UNI__XXXXXXX
 ```
 
 ## 资料来源

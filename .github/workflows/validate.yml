@@ -1,0 +1,82 @@
+name: validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  templates:
+    name: Templates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Validate templates
+        run: node scripts/validate-templates.mjs
+
+  scaffolder:
+    name: Scaffolder on Windows
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Scaffold a Vue3 and a Vue2 project
+        shell: pwsh
+        run: |
+          $v3 = Join-Path $env:RUNNER_TEMP 'demo-vue3'
+          $v2 = Join-Path $env:RUNNER_TEMP 'demo-vue2'
+          ./scripts/create-uniapp.ps1 -Name demo-vue3 -Target $v3 -Vue 3 -AppName 'Demo Vue3' -AppId '__UNI__TEST123'
+          ./scripts/create-uniapp.ps1 -Name demo-vue2 -Target $v2 -Vue 2 -AppName 'Demo Vue2'
+
+      - name: Validate the generated projects
+        shell: pwsh
+        run: |
+          $v3 = Join-Path $env:RUNNER_TEMP 'demo-vue3'
+          $v2 = Join-Path $env:RUNNER_TEMP 'demo-vue2'
+          node scripts/validate-templates.mjs `
+            --project $v3 --vue 3 --app-name 'Demo Vue3' --app-id '__UNI__TEST123' `
+            --project $v2 --vue 2 --app-name 'Demo Vue2'
+
+      - name: Refuse to write into a non-empty target without -Force
+        shell: pwsh
+        run: |
+          $v3 = Join-Path $env:RUNNER_TEMP 'demo-vue3'
+          $threw = $false
+          try {
+            ./scripts/create-uniapp.ps1 -Name demo-vue3 -Target $v3 -Vue 3
+          } catch {
+            $threw = $true
+          }
+          if (-not $threw) { throw 'expected the scaffolder to refuse a non-empty target without -Force' }
+
+      - name: Accept a relative -Target
+        shell: pwsh
+        run: |
+          $parent = Join-Path $env:RUNNER_TEMP 'relative-target'
+          New-Item -ItemType Directory -Path $parent -Force | Out-Null
+          Push-Location $parent
+          try {
+            & (Join-Path $env:GITHUB_WORKSPACE 'scripts/create-uniapp.ps1') -Name relativeapp -Vue 3
+            if (-not (Test-Path (Join-Path $parent 'relativeapp/manifest.json'))) {
+              throw 'a relative -Target did not resolve next to the current directory'
+            }
+          } finally {
+            Pop-Location
+          }
