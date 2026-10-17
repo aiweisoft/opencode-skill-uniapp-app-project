@@ -1,0 +1,4 @@
+# Keep the templates byte-identical across platforms: the scaffolder copies these
+# files verbatim, and uni-app is sensitive to stray BOM/line-ending changes.
+* text=auto eol=lf
+*.png binary
